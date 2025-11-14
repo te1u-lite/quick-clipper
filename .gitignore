@@ -1,0 +1,58 @@
+# -----------------------------
+# Python / Virtual Environment
+# -----------------------------
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# -----------------------------
+# Editor / IDE
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -----------------------------
+# OS Generated Files
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Logs / Temp / Cache
+# -----------------------------
+*.log
+*.tmp
+*.bak
+.cache/
+dist/
+build/
+*.spec
+
+# -----------------------------
+# Python Packaging / Installers
+# -----------------------------
+*.egg-info/
+*.dist-info/
+pip-wheel-metadata/
+
+# -----------------------------
+# PyInstaller build output
+# -----------------------------
+/dist/
+/build/
+
+# -----------------------------
+# Project-specific exclusions
+# -----------------------------
+
+# IMPORTANT: Never commit sensitive configs
+config/config.json
+
+# Local runtime files (screenshots / temp recordings)
+recordings/
+temp/
+clips/
