@@ -56,3 +56,6 @@ config/config.json
 recordings/
 temp/
 clips/
+
+# test
+test_step1.py
