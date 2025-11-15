@@ -1,5 +1,7 @@
 from datetime import datetime
 from obs_client import OBSClient
+from clip_trimmer import trim_tail
+import os
 
 
 class ClipService:
@@ -15,12 +17,22 @@ class ClipService:
         self.obs = obs_client
         self.enabled = True
 
+        # ラベル (ログ用)
         self.preset_labels = {
             "15s": "直近15秒",
             "30s": "直近30秒",
             "60s": "直近1分",
             "5min": "直近5分",
             "15min": "直近15分",
+        }
+
+        # 実際に切り出す秒数
+        self.preset_seconds = {
+            "15s": 15,
+            "30s": 30,
+            "60s": 60,
+            "5min": 5 * 60,
+            "15min": 15 * 60,
         }
 
     def handle_hotkey(self, preset: str):
@@ -34,11 +46,36 @@ class ClipService:
             return
 
         label = self.preset_labels.get(preset, preset)
+        seconds = self.preset_seconds.get(preset)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if seconds is None:
+            print(f"[ClipService] 未知のプリセット: {preset}")
+            return
+
         print(f"[{timestamp}] ホットキー検知: {label} のクリップを保存します。")
 
         try:
-            self.obs.save_replay()
-            print(f"[{timestamp}] {label} のクリップ保存要求をOBSに送信しました。")
+            # 1) OBSにリプレイ保存を指示 + 保存された元ファイルのパスを取得
+            original_path = self.obs.save_replay_and_wait_for_file()
+
+            # 2) ffmpegで末尾 seconds 秒だけを切り出す
+            trimmed_path = trim_tail(
+                original_path,
+                seconds=seconds,
+                ffmpeg_path=self.obs.ffmpeg_path,
+            )
+
+            print(
+                f"[{timestamp}] {label} のトリミング済みクリップを作成しました: {trimmed_path}"
+            )
+
+            # 3) 元15分 (フル) クリップを削除
+            try:
+                os.remove(original_path)
+                print(f"[ClipService] 元クリップを削除しました: {original_path}")
+            except Exception as e:
+                print(f"[ClipService] 元クリップの削除に失敗しました: {e}")
+
         except Exception as e:
-            print(f"[ClipService] クリップ保存に失敗しました: {e}")
+            print(f"[ClipService] クリップ保存またはトリミングに失敗しました: {e}")
