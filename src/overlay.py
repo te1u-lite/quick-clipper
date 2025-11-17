@@ -58,9 +58,7 @@ def show_overlay(
 ):
     """
     シンプルなオーバーレイ通知を表示する。
-    duration_ms ミリ秒後に自動で消える (その間はホットキー処理は少しだけブロックされる)
-
-    position: "top-right", "bottom-right" を想定。
+    position: "bottom-right", "bottom-left", "top-right", "top-left"
     """
 
     thumb_path = _generate_thumbnail(
@@ -72,27 +70,13 @@ def show_overlay(
     root = tk.Tk()
 
     # 枠なし & 最前面 & 透明度
-    root.overrideredirect(True)  # タイトルバーなし
+    root.overrideredirect(True)
     root.attributes("-topmost", True)
     try:
-        root.attributes("-toolwindow", True)  # 可能ならタスクバーに出さない
+        root.attributes("-toolwindow", True)
     except tk.TclError:
         pass
-    root.attributes("-alpha", 0.9)  # 少し透過
-
-    # 画面サイズ取得
-    screen_w = root.winfo_screenwidth()
-    screen_h = root.winfo_screenheight()
-    margin = 24
-
-    if position == "top-right":
-        x = screen_w - width - margin
-        y = margin
-    else:  # bottom-right
-        x = screen_w - width - margin
-        y = screen_h - height - margin
-
-    root.geometry(f"{width}x{height}+{int(x)}+{int(y)}")
+    root.attributes("-alpha", 0.9)
 
     border_color = "#444444"
     card_bg = "#222222"
@@ -125,6 +109,12 @@ def show_overlay(
             photo = ImageTk.PhotoImage(img)
             thumb_label.configure(image=photo)
             thumb_label.image = photo
+
+            try:
+                os.remove(thumb_path)
+                print(f"[Overlay] 一時サムネイルを削除しました: {thumb_path}")
+            except OSError as e:
+                print(f"[Overlay] サムネイル削除に失敗しました: {e}")
         except Exception as e:
             print("[Overlay] サムネイル画像のロードに失敗しました:", e)
 
@@ -151,6 +141,35 @@ def show_overlay(
         justify="left",
     )
     detail_label.grid(row=1, column=1, sticky="sw", padx=(0, 12), pady=(4, 10))
+
+    # ▲ ここまででレイアウト完了
+
+    # 必要なウィンドウサイズを取得
+    root.update_idletasks()
+    req_w = max(width, root.winfo_reqwidth())
+    req_h = max(height, root.winfo_reqheight())
+
+    # 画面サイズ取得
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+    margin_x = 24
+    margin_y = 60  # ここを調整すると上下の余白を変えられる
+
+    pos = position.lower()
+    if pos == "top-right":
+        x = screen_w - req_w - margin_x
+        y = margin_y
+    elif pos == "top-left":
+        x = margin_x
+        y = margin_y
+    elif pos == "bottom-left":
+        x = margin_x
+        y = max(0, screen_h - req_h - margin_y)
+    else:  # "bottom-right" ほか
+        x = screen_w - req_w - margin_x
+        y = max(0, screen_h - req_h - margin_y)
+
+    root.geometry(f"{req_w}x{req_h}+{int(x)}+{int(y)}")
 
     # 一定時間後に閉じる
     root.after(duration_ms, root.destroy)

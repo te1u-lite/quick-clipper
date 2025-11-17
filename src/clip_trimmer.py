@@ -115,7 +115,7 @@ def trim_tail(input_path: str, seconds: int, ffmpeg_path: str = "ffmpeg") -> str
     元ファイルは削除しない。
     """
     base, ext = os.path.splitext(input_path)
-    output_path = f"{base}_{int(seconds)}s{ext}"
+    output_path = f"{base}_{int(seconds)}s.mp4"
 
     ffprobe_path = _get_ffprobe_path(ffmpeg_path)
 

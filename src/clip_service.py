@@ -87,7 +87,7 @@ class ClipService:
                 video_path=trimmed_path,
                 ffmpeg_path=self.obs.ffmpeg_path,
                 duration_ms=1700,
-                position="bottom-right")
+                position="top-right")
 
         except Exception as e:
             print(f"[ClipService] クリップ保存またはトリミングに失敗しました: {e}")
