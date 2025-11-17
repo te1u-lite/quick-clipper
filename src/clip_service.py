@@ -3,6 +3,8 @@ from obs_client import OBSClient
 from clip_trimmer import trim_tail
 import os
 
+from overlay import show_overlay
+
 
 class ClipService:
     """
@@ -76,6 +78,16 @@ class ClipService:
                 print(f"[ClipService] 元クリップを削除しました: {original_path}")
             except Exception as e:
                 print(f"[ClipService] 元クリップの削除に失敗しました: {e}")
+
+            # オーバーレイ表示
+            overlay_text = f"{label} のクリップを保存しました"
+            show_overlay(
+                overlay_text,
+                seconds=seconds,
+                video_path=trimmed_path,
+                ffmpeg_path=self.obs.ffmpeg_path,
+                duration_ms=1700,
+                position="bottom-right")
 
         except Exception as e:
             print(f"[ClipService] クリップ保存またはトリミングに失敗しました: {e}")
