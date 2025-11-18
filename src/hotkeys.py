@@ -1,4 +1,5 @@
 import keyboard
+import threading
 
 
 def start_listening(callback):
@@ -18,12 +19,16 @@ def start_listening(callback):
     print("  Ctrl+Alt+Q : 終了")
     print("============================")
 
+    def run_async(preset: str):
+        t = threading.Thread(target=callback, args=(preset,), daemon=True)
+        t.start()
+
     # 各ホットキーとプレセットの対応を登録
-    keyboard.add_hotkey("ctrl+alt+1", lambda: callback("15s"))
-    keyboard.add_hotkey("ctrl+alt+2", lambda: callback("30s"))
-    keyboard.add_hotkey("ctrl+alt+3", lambda: callback("60s"))
-    keyboard.add_hotkey("ctrl+alt+4", lambda: callback("5min"))
-    keyboard.add_hotkey("ctrl+alt+5", lambda: callback("15min"))
+    keyboard.add_hotkey("ctrl+alt+1", lambda: run_async("15s"))
+    keyboard.add_hotkey("ctrl+alt+2", lambda: run_async("30s"))
+    keyboard.add_hotkey("ctrl+alt+3", lambda: run_async("60s"))
+    keyboard.add_hotkey("ctrl+alt+4", lambda: run_async("5min"))
+    keyboard.add_hotkey("ctrl+alt+5", lambda: run_async("15min"))
 
     # 終了ホットキー
     print("Hotkey待機中... (Ctrl+Alt+Q で終了) ")

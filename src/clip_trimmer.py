@@ -70,7 +70,7 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
         )
         candidates = [line.strip() for line in result2.stdout.splitlines() if line.strip()]
         if candidates:
-            duration_str2 = candidates
+            duration_str2 = candidates[0]
             print(f"[Trimmer] stream.duration raw: '{duration_str2}'")
             if duration_str2 and duration_str2 not in ("N/A", "nan", "inf"):
                 return float(duration_str2)
@@ -79,6 +79,7 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
 
     # 3) frame=best_effort_timestamp_time の最後の値を duration とみなす
     cmd_frame = [
+        ffprobe_path,
         "-v",
         "error",
         "-select_streams",
@@ -114,7 +115,7 @@ def trim_tail(input_path: str, seconds: int, ffmpeg_path: str = "ffmpeg") -> str
     input_path の「末尾 seconds 秒」を切り出して新しいファイルを作る。
     元ファイルは削除しない。
     """
-    base, ext = os.path.splitext(input_path)
+    base, _ = os.path.splitext(input_path)
     output_path = f"{base}_{int(seconds)}s.mp4"
 
     ffprobe_path = _get_ffprobe_path(ffmpeg_path)
