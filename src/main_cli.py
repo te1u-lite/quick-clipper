@@ -1,6 +1,7 @@
 from obs_client import OBSClient
 from clip_service import ClipService
 from hotkeys import start_listening
+from overlay import show_overlay
 
 
 def main():
@@ -11,7 +12,8 @@ def main():
         print("[main_cli] OBSへの接続に失敗したため終了します。")
         return
 
-    clip_service = ClipService(obs)
+    # CLI版: overlay.show_overlay を渡す
+    clip_service = ClipService(obs, overlay_fn=show_overlay, logger=print)
 
     try:
         # ホットキーの監視開始

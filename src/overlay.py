@@ -46,37 +46,36 @@ def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 0.
     return thumb_path
 
 
-def show_overlay(
-        message: str,
-        seconds: int,
-        video_path: str,
-        ffmpeg_path: str = "ffmpeg",
-        duration_ms: int = 1500,
-        position: str = "top-right",
-        width: int = 260,
-        height: int = 60,
+def _build_overlay_window(
+    root_win: tk.Misc,
+    message: str,
+    seconds: int,
+    video_path: str,
+    ffmpeg_path: str = "ffmpeg",
+    duration_ms: int = 1500,
+    position: str = "top-right",
+    width: int = 260,
+    height: int = 60,
 ):
     """
-    シンプルなオーバーレイ通知を表示する。
-    position: "bottom-right", "bottom-left", "top-right", "top-left"
+    既存の Tk / Toplevel 上にオーバーレイ用の Toplevel を構築する共通処理。
+    root_win: tk.Tk または tk.Toplevel
     """
-
     thumb_path = _generate_thumbnail(
         video_path,
         ffmpeg_path=ffmpeg_path,
         seek_time=max(0.1, seconds / 2) if seconds > 1 else 0.1,
     )
 
-    root = tk.Tk()
-
-    # 枠なし & 最前面 & 透明度
-    root.overrideredirect(True)
-    root.attributes("-topmost", True)
+    # 親(root_win)にぶら下げる Toplevel
+    win = tk.Toplevel(root_win)
+    win.overrideredirect(True)
+    win.attributes("-topmost", True)
     try:
-        root.attributes("-toolwindow", True)
+        win.attributes("-toolwindow", True)
     except tk.TclError:
         pass
-    root.attributes("-alpha", 0.9)
+    win.attributes("-alpha", 0.9)
 
     border_color = "#444444"
     card_bg = "#222222"
@@ -84,8 +83,8 @@ def show_overlay(
     text_sub = "#aaaaaa"
 
     # 外枠
-    root.configure(bg=border_color)
-    outer = tk.Frame(root, bg=border_color, bd=0)
+    win.configure(bg=border_color)
+    outer = tk.Frame(win, bg=border_color, bd=0)
     outer.pack(fill="both", expand=True, padx=1, pady=1)
 
     # カード本体
@@ -142,18 +141,16 @@ def show_overlay(
     )
     detail_label.grid(row=1, column=1, sticky="sw", padx=(0, 12), pady=(4, 10))
 
-    # ▲ ここまででレイアウト完了
+    # レイアウト完了 → 必要サイズ取得
+    win.update_idletasks()
+    req_w = max(width, win.winfo_reqwidth())
+    req_h = max(height, win.winfo_reqheight())
 
-    # 必要なウィンドウサイズを取得
-    root.update_idletasks()
-    req_w = max(width, root.winfo_reqwidth())
-    req_h = max(height, root.winfo_reqheight())
-
-    # 画面サイズ取得
-    screen_w = root.winfo_screenwidth()
-    screen_h = root.winfo_screenheight()
+    # 画面サイズ
+    screen_w = win.winfo_screenwidth()
+    screen_h = win.winfo_screenheight()
     margin_x = 24
-    margin_y = 60  # ここを調整すると上下の余白を変えられる
+    margin_y = 60
 
     pos = position.lower()
     if pos == "top-right":
@@ -169,8 +166,65 @@ def show_overlay(
         x = screen_w - req_w - margin_x
         y = max(0, screen_h - req_h - margin_y)
 
-    root.geometry(f"{req_w}x{req_h}+{int(x)}+{int(y)}")
+    win.geometry(f"{req_w}x{req_h}+{int(x)}+{int(y)}")
 
     # 一定時間後に閉じる
-    root.after(duration_ms, root.destroy)
+    win.after(duration_ms, win.destroy)
+    return win
+
+
+def show_overlay_in_tk(
+    root: tk.Tk,
+    message: str,
+    seconds: int,
+    video_path: str,
+    ffmpeg_path: str = "ffmpeg",
+    duration_ms: int = 1500,
+    position: str = "top-right",
+    width: int = 260,
+    height: int = 60,
+):
+    """
+    既存の Tk アプリ（GUI版）で使うためのオーバーレイ表示関数。
+    - root: メインウィンドウ (tk.Tk)
+    """
+    _build_overlay_window(
+        root,
+        message=message,
+        seconds=seconds,
+        video_path=video_path,
+        ffmpeg_path=ffmpeg_path,
+        duration_ms=duration_ms,
+        position=position,
+        width=width,
+        height=height,
+    )
+
+
+def show_overlay(
+    message: str,
+    seconds: int,
+    video_path: str,
+    ffmpeg_path: str = "ffmpeg",
+    duration_ms: int = 1500,
+    position: str = "top-right",
+    width: int = 260,
+    height: int = 60,
+):
+    """
+    CLI 用のシンプルなオーバーレイ通知。
+    独自に tk.Tk() を作って mainloop まで回す。
+    """
+    root = tk.Tk()
+    _build_overlay_window(
+        root,
+        message=message,
+        seconds=seconds,
+        video_path=video_path,
+        ffmpeg_path=ffmpeg_path,
+        duration_ms=duration_ms,
+        position=position,
+        width=width,
+        height=height,
+    )
     root.mainloop()
