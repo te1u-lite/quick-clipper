@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import sys
 
 from obswebsocket import obsws, requests
 
@@ -8,7 +9,36 @@ from obswebsocket import obsws, requests
 class OBSClient:
     def __init__(self, config_path="../config/config.json"):
         self.ws = None
-        config_file = os.path.join(os.path.dirname(__file__), config_path)
+
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(__file__)
+
+        candidates: list[str] = []
+
+        if config_path:
+            if os.path.isabs(config_path):
+                candidates.append(config_path)
+            else:
+                candidates.append(os.path.join(base_dir, config_path))
+
+        candidates.append(os.path.join(base_dir, "config", "config.json"))
+
+        candidates.append(os.path.join(os.path.dirname(base_dir), "config", "config.json"))
+
+        config_file = None
+        for path in candidates:
+            if os.path.isfile(path):
+                config_file = path
+                break
+
+        if config_file is None:
+            raise FileNotFoundError(
+                "config.json が見つかりませんでした。試したパス:\n"
+                + "\n".join(candidates)
+            )
+
         with open(config_file, "r", encoding="utf-8")as f:
             cfg = json.load(f)
 

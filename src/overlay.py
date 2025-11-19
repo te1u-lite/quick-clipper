@@ -13,11 +13,13 @@ def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 0.
     base, _ = os.path.splitext(video_path)
     thumb_path = base + "_thumb.jpg"
 
+    safe_seek = max(0.1, min(seek_time, 1.0))
+
     cmd = [
         ffmpeg_path,
         "-y",
         "-ss",
-        f"{seek_time}",
+        f"{safe_seek}",
         "-i",
         video_path,
         "-vframes",
