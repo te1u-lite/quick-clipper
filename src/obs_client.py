@@ -11,31 +11,31 @@ class OBSClient:
     def __init__(self, config_path=None):
         self.ws = None
 
-        # === 実行環境に応じたベースディレクトリ ===
+        # ========== config.json の場所を決定 ==========
         if getattr(sys, "frozen", False):
-            # PyInstaller EXE
-            base_dir = os.path.dirname(sys.executable)
+            # exe 実行時 → AppData/Roaming/quick-clipper/config.json
+            appdata = os.getenv("APPDATA")
+            config_dir = os.path.join(appdata, "quick-clipper")
+            config_file = os.path.join(config_dir, "config.json")
         else:
-            # dev 環境 / Python 実行 → src の絶対パス
+            # 開発環境 → プロジェクトルート/config/config.json
             base_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # === config.json の絶対パス ===
-        if config_path is None:
-            # src/ の 1つ上がプロジェクト root
             root_dir = os.path.dirname(base_dir)
-            config_path = os.path.join(root_dir, "config", "config.json")
+            config_file = os.path.join(root_dir, "config", "config.json")
 
-        if not os.path.isfile(config_path):
-            raise FileNotFoundError(f"config.json が見つかりません:\n{config_path}")
+        # 絶対パスとして保持
+        self.config_path = config_file
 
-        # === ConfigManager を使って読み込む ===
-        self.config_mgr = ConfigManager(config_path)
+        # ConfigManager 経由で読み込む
+        self.config_mgr = ConfigManager(self.config_path)
         cfg = self.config_mgr.config
 
-        # ---- 重要：必要な属性を必ず定義する ----
+        # ========= 重要：属性を必ず定義 =========
         self.host = cfg.get("obs_host", "localhost")
         self.port = cfg.get("obs_port", 4455)
-        self.password = self.config_mgr.decrypt_password(cfg.get("obs_password_enc", ""))
+        self.password = self.config_mgr.decrypt_password(
+            cfg.get("obs_password_enc", "")
+        )
 
         self.replay_dir = cfg.get("replay_output_dir")
         self.ffmpeg_path = cfg.get("ffmpeg_path", "ffmpeg")

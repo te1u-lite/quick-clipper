@@ -15,6 +15,13 @@ def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 1.
     base, _ = os.path.splitext(video_path)
     thumb_path = base + "_thumb.jpg"
 
+    # --- パスの正規化（これが最重要） ---
+    video_path = os.path.normpath(video_path)
+    ffmpeg_path = os.path.normpath(ffmpeg_path)
+
+    base, _ = os.path.splitext(video_path)
+    thumb_path = os.path.normpath(base + "_thumb.jpg")
+
     safe_seek = max(0.1, min(seek_time, 1.0))
 
     cmd = [
