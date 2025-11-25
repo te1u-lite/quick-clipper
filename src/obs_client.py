@@ -1,54 +1,48 @@
 import json
 import os
-import time
 import sys
+import time
 
 from obswebsocket import obsws, requests
+from config_manager import ConfigManager
 
 
 class OBSClient:
-    def __init__(self, config_path="../config/config.json"):
+    def __init__(self, config_path=None):
         self.ws = None
 
+        # === 実行環境に応じたベースディレクトリ ===
         if getattr(sys, "frozen", False):
+            # PyInstaller EXE
             base_dir = os.path.dirname(sys.executable)
         else:
-            base_dir = os.path.dirname(__file__)
+            # dev 環境 / Python 実行 → src の絶対パス
+            base_dir = os.path.dirname(os.path.abspath(__file__))
 
-        candidates: list[str] = []
+        # === config.json の絶対パス ===
+        if config_path is None:
+            # src/ の 1つ上がプロジェクト root
+            root_dir = os.path.dirname(base_dir)
+            config_path = os.path.join(root_dir, "config", "config.json")
 
-        if config_path:
-            if os.path.isabs(config_path):
-                candidates.append(config_path)
-            else:
-                candidates.append(os.path.join(base_dir, config_path))
+        if not os.path.isfile(config_path):
+            raise FileNotFoundError(f"config.json が見つかりません:\n{config_path}")
 
-        candidates.append(os.path.join(base_dir, "config", "config.json"))
+        # === ConfigManager を使って読み込む ===
+        self.config_mgr = ConfigManager(config_path)
+        cfg = self.config_mgr.config
 
-        candidates.append(os.path.join(os.path.dirname(base_dir), "config", "config.json"))
-
-        config_file = None
-        for path in candidates:
-            if os.path.isfile(path):
-                config_file = path
-                break
-
-        if config_file is None:
-            raise FileNotFoundError(
-                "config.json が見つかりませんでした。試したパス:\n"
-                + "\n".join(candidates)
-            )
-
-        with open(config_file, "r", encoding="utf-8")as f:
-            cfg = json.load(f)
-
-        self.host = cfg["obs_host"]
-        self.port = cfg["obs_port"]
-        self.password = cfg["obs_password"]
+        # ---- 重要：必要な属性を必ず定義する ----
+        self.host = cfg.get("obs_host", "localhost")
+        self.port = cfg.get("obs_port", 4455)
+        self.password = self.config_mgr.decrypt_password(cfg.get("obs_password_enc", ""))
 
         self.replay_dir = cfg.get("replay_output_dir")
         self.ffmpeg_path = cfg.get("ffmpeg_path", "ffmpeg")
 
+    # -------------------------------
+    # 接続 / 切断
+    # -------------------------------
     def connect(self):
         if self.ws:
             return
@@ -69,10 +63,10 @@ class OBSClient:
             print("[OBS] Disconnected.")
             self.ws = None
 
+    # -------------------------------
+    # リプレイ保存
+    # -------------------------------
     def save_replay(self):
-        """
-        リプレイバッファを保存 (OBS の SaveReplayBuffer コマンド)
-        """
         if not self.ws:
             raise RuntimeError("OBS is not connected.")
 
@@ -85,10 +79,6 @@ class OBSClient:
             raise
 
     def _wait_file_stable(self, path: str, timeout=5.0):
-        """
-        ファイルサイズが一定になるまで待つ。
-        OBS が書き込み中の状態を避けるための簡易ヘルパ。
-        """
         start = time.time()
         last_size = -1
         stable_count = 0
@@ -103,10 +93,8 @@ class OBSClient:
             if size > 0 and size == last_size:
                 stable_count += 1
                 if stable_count >= 3:
-                    # 3回連続同じサイズなら安定とみなす
                     print(f"[OBS] File size stabilized: {size} bytes")
                     return
-
             else:
                 stable_count = 0
                 last_size = size
@@ -116,22 +104,13 @@ class OBSClient:
         print("[OBS] File size may still be changing, but timeout reached.")
 
     def save_replay_and_wait_for_file(self, timeout=10):
-        """
-        リプレイバッファ保存をトリガーして、
-        replay_output_dir に新しく作られたファイルパスを返す。
-        """
         if not self.replay_dir:
-            raise RuntimeError(
-                "replay_output_dir が config.json に設定されていません。"
-            )
+            raise RuntimeError("replay_output_dir が config.json に設定されていません。")
         if not os.path.isdir(self.replay_dir):
-            raise RuntimeError(
-                f"replay_output_dir が存在しません: {self.replay_dir}"
-            )
+            raise RuntimeError(f"replay_output_dir が存在しません: {self.replay_dir}")
 
         before = set(os.listdir(self.replay_dir))
 
-        # 通常の保存リクエスト
         self.save_replay()
 
         start = time.time()
@@ -140,7 +119,6 @@ class OBSClient:
             after = set(os.listdir(self.replay_dir))
             new_files = after - before
             if new_files:
-                # 新しく出来たファイルの中で、更新時間が一番新しいものを返す
                 candidates = [
                     os.path.join(self.replay_dir, name)
                     for name in new_files
@@ -150,9 +128,7 @@ class OBSClient:
                     latest = max(candidates, key=os.path.getmtime)
                     print(f"[OBS] New replay file detected: {latest}")
 
-                    # ここでサイズが安定するまで少し待つ
                     self._wait_file_stable(latest)
-
                     return latest
 
         raise RuntimeError("タイムアウト内に新しいリプレイファイルが見つかりませんでした。")
