@@ -4,6 +4,8 @@ import tkinter as tk
 
 from PIL import Image, ImageTk
 
+CREATE_NO_WINDOW = 0x08000000
+
 
 def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 0.5) -> str | None:
     """
@@ -36,6 +38,7 @@ def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 0.
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=CREATE_NO_WINDOW,
         )
     except subprocess.CalledProcessError as e:
         print("[Overlay] サムネイル生成に失敗しました:", e)

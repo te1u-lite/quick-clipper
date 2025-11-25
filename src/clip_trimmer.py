@@ -1,5 +1,27 @@
 import os
 import subprocess
+import sys
+
+CREATE_NO_WINDOW = 0x08000000
+
+
+def get_local_ffmpeg_path():
+    """
+    プロジェクト内 ffmpeg フォルダにある ffmpeg.exe / ffprobe.exe を返す。
+    PyInstaller の EXE にまとめても動作する。
+    """
+
+    # 実行ファイルの基準パス (EXEでもソースコードでもOK)
+    if getattr(sys, "frozen", False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    ffmpeg_dir = os.path.join(base_dir, "ffmpeg")
+    ffmpeg_path = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+    ffprobe_path = os.path.join(ffmpeg_dir, "ffprobe.exe")
+
+    return ffmpeg_path, ffprobe_path
 
 
 def _get_ffprobe_path(ffmpeg_path: str) -> str:
@@ -39,6 +61,7 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            creationflags=CREATE_NO_WINDOW,
         )
         duration_str = result.stdout.strip()
         print(f"[Trimmer] format.duration raw: '{duration_str}'")
@@ -67,6 +90,7 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            creationflags=CREATE_NO_WINDOW,
         )
         candidates = [line.strip() for line in result2.stdout.splitlines() if line.strip()]
         if candidates:
@@ -97,6 +121,7 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            creationflags=CREATE_NO_WINDOW,
         )
         lines = [line.strip() for line in result3.stdout.splitlines() if line.strip()]
         if not lines:
@@ -110,15 +135,15 @@ def get_duration_seconds(input_path: str, ffprobe_path: str = "ffprobe") -> floa
         raise RuntimeError("ffprobe で有効な duration が取得できませんでした。") from e
 
 
-def trim_tail(input_path: str, seconds: int, ffmpeg_path: str = "ffmpeg") -> str:
+def trim_tail(input_path: str, seconds: int) -> str:
     """
     input_path の「末尾 seconds 秒」を切り出して新しいファイルを作る。
     元ファイルは削除しない。
     """
+    ffmpeg_path, ffprobe_path = get_local_ffmpeg_path()
+
     base, _ = os.path.splitext(input_path)
     output_path = f"{base}_{int(seconds)}s.mp4"
-
-    ffprobe_path = _get_ffprobe_path(ffmpeg_path)
 
     # 1) 動画の総尺を取得
     duration = get_duration_seconds(input_path, ffprobe_path=ffprobe_path)
@@ -176,6 +201,7 @@ def trim_tail(input_path: str, seconds: int, ffmpeg_path: str = "ffmpeg") -> str
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=CREATE_NO_WINDOW,
         )
     except subprocess.CalledProcessError as e:
         print("[Trimmer] ffmpeg によるトリミングに失敗しました:", e)

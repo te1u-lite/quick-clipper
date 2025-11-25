@@ -59,3 +59,9 @@ clips/
 
 # test
 test_step1.py
+
+# ffmpeg
+ffmpeg/
+
+# .exe
+*.exe

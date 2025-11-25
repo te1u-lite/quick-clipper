@@ -82,7 +82,6 @@ class ClipService:
             trimmed_path = trim_tail(
                 original_path,
                 seconds=seconds,
-                ffmpeg_path=self.obs.ffmpeg_path,
             )
 
             self._log(
