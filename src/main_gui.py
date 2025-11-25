@@ -16,12 +16,57 @@ except Exception:
     pass
 
 
+def enable_gui_theme():
+    style = ttk.Style()
+
+    for theme in ("clam", "alt", "default", "classic"):
+        if theme in style.theme_names():
+            style.theme_use(theme)
+            break
+
+    # base
+    style.configure(".", background="#1e1e1e", foreground="#e0e0e0")
+
+    # Frame / LabelFrame
+    style.configure("TFrame", background="#1e1e1e")
+    style.configure("TLabelframe", background="#1e1e1e", foreground="#cccccc")
+    style.configure("TLabelframe.Label", background="#1e1e1e", foreground="#cccccc")
+
+    # Label
+    style.configure("TLabel", background="#1e1e1e", foreground="#e0e0e0")
+
+    # Button
+    style.configure(
+        "TButton",
+        background="#333333",
+        foreground="#ffffff",
+        padding=8,
+        relief="flat",
+        borderwidth=0
+    )
+    style.map(
+        "TButton",
+        background=[
+            ("disabled", "#1b1b1b"),  # ← 非アクティブの背景
+            ("pressed", "#222222"),
+            ("active", "#444444"),
+        ],
+        foreground=[
+            ("disabled", "#555555"),  # ← 非アクティブの文字色
+            ("pressed", "#e0e0e0"),
+            ("active", "#ffffff"),
+        ],
+    )
+
+
 class QuickClipperApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Quick Clipper")
         self.root.geometry("420x260")
         self.root.minsize(420, 260)
+
+        enable_gui_theme()
 
         # OBS / ClipService
         self.obs_client: OBSClient | None = None
