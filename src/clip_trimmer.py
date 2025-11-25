@@ -15,7 +15,8 @@ def get_local_ffmpeg_path():
     if getattr(sys, "frozen", False):
         base_dir = os.path.dirname(sys.executable)
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # VSCode / Python 実行時はプロジェクトルートを基準にする
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     ffmpeg_dir = os.path.join(base_dir, "ffmpeg")
     ffmpeg_path = os.path.join(ffmpeg_dir, "ffmpeg.exe")

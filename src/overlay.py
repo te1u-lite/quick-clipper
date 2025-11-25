@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 CREATE_NO_WINDOW = 0x08000000
 
 
-def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 0.5) -> str | None:
+def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 1.0) -> str | None:
     """
     動画ファイルから1枚だけサムネイル画像を生成して、そのパスを返す。
     失敗した場合は None

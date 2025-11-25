@@ -9,6 +9,12 @@ from clip_service import ClipService
 from overlay import show_overlay_in_tk
 from global_hotkeys import GlobalHotkeyListener
 
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    pass
+
 
 class QuickClipperApp:
     def __init__(self, root: tk.Tk):
