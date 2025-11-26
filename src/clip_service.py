@@ -84,6 +84,18 @@ class ClipService:
                 seconds=seconds,
             )
 
+            # GUIで指定した出力先に移動する
+            output_dir = self.obs.config_mgr.config.get("replay_output_dir", "")
+            if output_dir:
+                try:
+                    os.makedirs(output_dir, exist_ok=True)
+                    new_path = os.path.join(output_dir, os.path.basename(trimmed_path))
+                    os.replace(trimmed_path, new_path)
+                    trimmed_path = new_path
+                    self._log(f"[ClipService] トリミング結果を移動: {trimmed_path}")
+                except Exception as e:
+                    self._log(f"[ClipService] トリミング結果の移動に失敗しました: {e}")
+
             self._log(
                 f"[{timestamp}] {label} のトリミング済みクリップを作成しました: {trimmed_path}"
             )

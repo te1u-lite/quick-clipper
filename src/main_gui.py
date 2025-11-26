@@ -276,17 +276,6 @@ class QuickClipperApp:
         ttk.Label(settings_frame, text="Replay出力先:").grid(row=3, column=0, sticky="w")
         self.replay_dir_var = tk.StringVar(value=self.config_mgr.config["replay_output_dir"])
 
-        tk.Entry(settings_frame,
-                 textvariable=self.replay_dir_var,
-                 width=28,
-                 justify="right",
-                 bg="#2a2a2a",
-                 fg="#ffffff",
-                 insertbackground="#ffffff",
-                 relief="solid",
-                 bd=1)\
-            .grid(row=3, column=2, sticky="e")
-
         # 横に並べる専用フレーム
         replay_row = ttk.Frame(settings_frame)
         replay_row.grid(row=3, column=2, columnspan=2, sticky="w")
@@ -331,6 +320,8 @@ class QuickClipperApp:
         }
         self.config_mgr.save_config(cfg)
         messagebox.showinfo("保存", "設定を保存しました。")
+
+        self.obs_client = None
 
     # ---------- ログ出力 ----------
 
@@ -399,6 +390,10 @@ class QuickClipperApp:
     def on_start_clicked(self):
         if self.running:
             return
+
+        self.config_mgr = ConfigManager(self.config_mgr.config_path)
+
+        self.obs_client = OBSClient()
 
         # OBS 接続
         try:

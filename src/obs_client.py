@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import configparser
 
 from obswebsocket import obsws, requests
 from config_manager import ConfigManager
@@ -103,32 +104,89 @@ class OBSClient:
 
         print("[OBS] File size may still be changing, but timeout reached.")
 
+    def get_obs_record_directory(self):
+        """
+        OBS のプロファイル設定 / ReplayBuffer 設定 / 録画設定を総合して
+        最終的なリプレイバッファ保存先を決定する。
+        全 OBS バージョン・全プロファイルに対応。
+        """
+        import configparser
+        import os
+
+        # ------------ 1) OBS プロファイル basic.ini を読む ------------
+        appdata = os.getenv("APPDATA")
+        profiles_path = os.path.join(appdata, "obs-studio", "basic", "profiles")
+
+        profiles = [
+            p for p in os.listdir(profiles_path)
+            if os.path.isdir(os.path.join(profiles_path, p))
+        ]
+
+        # default プロファイル優先
+        if "default" in profiles:
+            profile = "default"
+        else:
+            profile = profiles[0]
+
+        ini_path = os.path.join(profiles_path, profile, "basic.ini")
+
+        # BOM対応
+        with open(ini_path, "r", encoding="utf-8-sig") as f:
+            ini_text = f.read()
+
+        config = configparser.ConfigParser()
+        config.read_string(ini_text)
+
+        # ------------ 2) RecFilePath があるなら使う ------------
+        if config.has_option("Output", "RecFilePath"):
+            path = config.get("Output", "RecFilePath")
+            if path:
+                return os.path.normpath(path)
+
+        # ------------ 3) ReplayBuffer.Path があるなら使う（新仕様） ------------
+        if config.has_option("Output", "ReplayBuffer.Path"):
+            path = config.get("Output", "ReplayBuffer.Path")
+            if path:
+                return os.path.normpath(path)
+
+        # ------------ 4) 録画中なら recordingFilename からフォルダ取得 ------------
+        try:
+            status = self.ws.call(requests.GetRecordingStatus())
+            recfile = status.getRecordingFilename()
+            if recfile:
+                return os.path.dirname(os.path.normpath(recfile))
+        except Exception:
+            pass
+
+        # ------------ 5) 最終手段：Windows の Videos フォルダ（OBSデフォルト） ------------
+        videos = os.path.join(os.path.expanduser("~"), "Videos")
+        return os.path.normpath(videos)
+
     def save_replay_and_wait_for_file(self, timeout=10):
-        if not self.replay_dir:
-            raise RuntimeError("replay_output_dir が config.json に設定されていません。")
-        if not os.path.isdir(self.replay_dir):
-            raise RuntimeError(f"replay_output_dir が存在しません: {self.replay_dir}")
+        # 1) OBS の保存先フォルダを設定ファイルから取得
+        record_dir = self.get_obs_record_directory()
+        record_dir = os.path.normpath(record_dir)
 
-        before = set(os.listdir(self.replay_dir))
+        before = set(os.listdir(record_dir))
 
+        # 2) リプレイ保存
         self.save_replay()
 
+        # 3) 新規ファイルを検出
         start = time.time()
         while time.time() - start < timeout:
             time.sleep(0.3)
-            after = set(os.listdir(self.replay_dir))
+            after = set(os.listdir(record_dir))
             new_files = after - before
             if new_files:
                 candidates = [
-                    os.path.join(self.replay_dir, name)
+                    os.path.join(record_dir, name)
                     for name in new_files
-                    if os.path.isfile(os.path.join(self.replay_dir, name))
+                    if os.path.isfile(os.path.join(record_dir, name))
                 ]
                 if candidates:
                     latest = max(candidates, key=os.path.getmtime)
-                    print(f"[OBS] New replay file detected: {latest}")
-
                     self._wait_file_stable(latest)
                     return latest
 
-        raise RuntimeError("タイムアウト内に新しいリプレイファイルが見つかりませんでした。")
+        raise RuntimeError("OBS の Replay Buffer ファイルが見つかりませんでした。")
