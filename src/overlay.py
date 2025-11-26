@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import tkinter as tk
 
@@ -7,17 +8,14 @@ from PIL import Image, ImageTk
 CREATE_NO_WINDOW = 0x08000000
 
 
-def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 1.0) -> str | None:
+def _generate_thumbnail(video_path: str, seek_time: float = 1.0) -> str | None:
     """
     動画ファイルから1枚だけサムネイル画像を生成して、そのパスを返す。
     失敗した場合は None
     """
-    base, _ = os.path.splitext(video_path)
-    thumb_path = base + "_thumb.jpg"
-
     # --- パスの正規化（これが最重要） ---
     video_path = os.path.normpath(video_path)
-    ffmpeg_path = os.path.normpath(ffmpeg_path)
+    ffmpeg_path = _get_ffmpeg_path()
 
     base, _ = os.path.splitext(video_path)
     thumb_path = os.path.normpath(base + "_thumb.jpg")
@@ -58,12 +56,21 @@ def _generate_thumbnail(video_path: str, ffmpeg_path: str, seek_time: float = 1.
     return thumb_path
 
 
+def _get_ffmpeg_path():
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        return os.path.join(exe_dir, "ffmpeg", "ffmpeg.exe")
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(base_dir)
+        return os.path.join(project_root, "ffmpeg", "ffmpeg.exe")
+
+
 def _build_overlay_window(
     root_win: tk.Misc,
     message: str,
     seconds: int,
     video_path: str,
-    ffmpeg_path: str = "ffmpeg",
     duration_ms: int = 1500,
     position: str = "top-right",
     width: int = 260,
@@ -75,7 +82,6 @@ def _build_overlay_window(
     """
     thumb_path = _generate_thumbnail(
         video_path,
-        ffmpeg_path=ffmpeg_path,
         seek_time=max(0.1, seconds / 2) if seconds > 1 else 0.1,
     )
 
@@ -190,7 +196,6 @@ def show_overlay_in_tk(
     message: str,
     seconds: int,
     video_path: str,
-    ffmpeg_path: str = "ffmpeg",
     duration_ms: int = 1500,
     position: str = "top-right",
     width: int = 260,
@@ -205,7 +210,6 @@ def show_overlay_in_tk(
         message=message,
         seconds=seconds,
         video_path=video_path,
-        ffmpeg_path=ffmpeg_path,
         duration_ms=duration_ms,
         position=position,
         width=width,
@@ -217,7 +221,6 @@ def show_overlay(
     message: str,
     seconds: int,
     video_path: str,
-    ffmpeg_path: str = "ffmpeg",
     duration_ms: int = 1500,
     position: str = "top-right",
     width: int = 260,
@@ -233,7 +236,6 @@ def show_overlay(
         message=message,
         seconds=seconds,
         video_path=video_path,
-        ffmpeg_path=ffmpeg_path,
         duration_ms=duration_ms,
         position=position,
         width=width,

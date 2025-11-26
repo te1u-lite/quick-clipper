@@ -104,9 +104,7 @@ class QuickClipperApp:
 
         enable_gui_theme()
 
-        config_path = os.path.join(os.path.dirname(
-            os.path.dirname(__file__)), "config", "config.json")
-        self.config_mgr = ConfigManager(config_path)
+        self.config_mgr = ConfigManager()
 
         # OBS / ClipService
         self.obs_client: OBSClient | None = None
@@ -324,24 +322,6 @@ class QuickClipperApp:
 
         self.obs_client = None
 
-    def cleanup_after_failed_start(self):
-        # OBS 切断
-        if self.obs_client:
-            try:
-                self.obs_client.disconnect()
-            except Exception:
-                pass
-            self.obs_client = None
-            self.clip_service = None
-
-        # UI 復帰
-        self.obs_status_var.set("OBS: 未接続")
-        self.hotkey_status_var.set("ホットキー: 停止中")
-        self.start_button.config(state="normal")
-        self.stop_button.config(state="disabled")
-
-        self.running = False
-
     # ---------- ログ出力 ----------
 
     def log(self, message: str):
@@ -415,7 +395,6 @@ class QuickClipperApp:
         message: str,
         seconds: int,
         video_path: str,
-        ffmpeg_path: str,
         duration_ms: int = 1700,
         position: str = "top-right",
     ):
@@ -431,7 +410,6 @@ class QuickClipperApp:
                     message=message,
                     seconds=seconds,
                     video_path=video_path,
-                    ffmpeg_path=ffmpeg_path,
                     duration_ms=duration_ms,
                     position=position,
                 )

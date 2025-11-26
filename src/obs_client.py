@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import time
@@ -9,11 +8,13 @@ from config_manager import ConfigManager
 
 
 class OBSClient:
-    def __init__(self, config_path=None):
+    def __init__(self, config_path: str | None = None):
         self.ws = None
 
         # ========== config.json の場所を決定 ==========
-        if getattr(sys, "frozen", False):
+        if config_path is not None:
+            config_file = os.path.abspath(config_path)
+        elif getattr(sys, "frozen", False):
             # exe 実行時 → AppData/Roaming/quick-clipper/config.json
             appdata = os.getenv("APPDATA")
             config_dir = os.path.join(appdata, "quick-clipper")
@@ -28,7 +29,7 @@ class OBSClient:
         self.config_path = config_file
 
         # ConfigManager 経由で読み込む
-        self.config_mgr = ConfigManager(self.config_path)
+        self.config_mgr = ConfigManager()
         cfg = self.config_mgr.config
 
         # ========= 重要：属性を必ず定義 =========
@@ -39,7 +40,6 @@ class OBSClient:
         )
 
         self.replay_dir = cfg.get("replay_output_dir")
-        self.ffmpeg_path = cfg.get("ffmpeg_path", "ffmpeg")
 
     # -------------------------------
     # 接続 / 切断
@@ -148,29 +148,35 @@ class OBSClient:
         最終的なリプレイバッファ保存先を決定する。
         全 OBS バージョン・全プロファイルに対応。
         """
-        import configparser
-        import os
-
         # ------------ 1) OBS プロファイル basic.ini を読む ------------
         appdata = os.getenv("APPDATA")
+        fallback = os.path.normpath(os.path.join(os.path.expanduser("~"), "Videos"))
+
+        if not appdata:
+            return fallback
+
         profiles_path = os.path.join(appdata, "obs-studio", "basic", "profiles")
 
-        profiles = [
-            p for p in os.listdir(profiles_path)
-            if os.path.isdir(os.path.join(profiles_path, p))
-        ]
+        try:
+            profiles = [
+                p for p in os.listdir(profiles_path)
+                if os.path.isdir(os.path.join(profiles_path, p))
+            ]
+        except FileNotFoundError:
+            # OBS がまだ一度も起動されていないなど
+            return fallback
 
-        # default プロファイル優先
-        if "default" in profiles:
-            profile = "default"
-        else:
-            profile = profiles[0]
+        if not profiles:
+            return fallback
 
+        profile = "default" if "default" in profiles else profiles[0]
         ini_path = os.path.join(profiles_path, profile, "basic.ini")
 
-        # BOM対応
-        with open(ini_path, "r", encoding="utf-8-sig") as f:
-            ini_text = f.read()
+        try:
+            with open(ini_path, "r", encoding="utf-8-sig") as f:
+                ini_text = f.read()
+        except FileNotFoundError:
+            return fallback
 
         config = configparser.ConfigParser()
         config.read_string(ini_text)
@@ -235,15 +241,5 @@ class OBSClient:
         try:
             status = self.ws.call(requests.GetRecordingStatus())
             return status.getRecording()
-        except Exception:
-            return False
-
-    def is_replaybuffer_active(self):
-        if not self.ws:
-            return False
-        try:
-            status = self.ws.call(requests.GetReplayBufferStatus())
-            # OBS WS v5: "isReplayBufferActive"
-            return status.getReplayBufferActive()
         except Exception:
             return False

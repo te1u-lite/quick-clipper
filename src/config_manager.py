@@ -10,11 +10,15 @@ except ImportError:
 
 
 class ConfigManager:
-    def __init__(self, config_path=None):
+    def __init__(self, config_path: str | None = None):
         # -----------------------------
         # config_path の決定
         # -----------------------------
-        if getattr(sys, "frozen", False):
+        if config_path is not None:
+            # 呼び出し側明示パスを優先
+            config_path = os.path.abspath(config_path)
+            config_dir = os.path.dirname(config_path)
+        elif getattr(sys, "frozen", False):
             # exe バージョン → AppData/Roaming/quick-clipper/config.json
             appdata = os.getenv("APPDATA")
             config_dir = os.path.join(appdata, "quick-clipper")
@@ -36,8 +40,7 @@ class ConfigManager:
             "obs_host": "localhost",
             "obs_port": 4455,
             "obs_password_enc": "",
-            "replay_output_dir": "",
-            "ffmpeg_path": ""
+            "replay_output_dir": os.path.join(os.path.expanduser("~"), "Videos"),
         }
 
         if not os.path.isfile(self.config_path):
@@ -119,8 +122,7 @@ class ConfigManager:
             "obs_host": "localhost",
             "obs_port": 4455,
             "obs_password_enc": "",
-            "replay_output_dir": "",
-            "ffmpeg_path": ""
+            "replay_output_dir": os.path.join(os.path.expanduser("~"), "Videos"),
         }
         for k, v in defaults.items():
             if k not in self.config:

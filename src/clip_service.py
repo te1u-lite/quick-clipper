@@ -115,7 +115,6 @@ class ClipService:
                         overlay_text,
                         seconds=seconds,
                         video_path=trimmed_path,
-                        ffmpeg_path=self.obs.ffmpeg_path,
                         duration_ms=1700,
                         position="top-right",
                     )
