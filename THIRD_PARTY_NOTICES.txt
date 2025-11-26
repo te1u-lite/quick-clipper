@@ -1,0 +1,36 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+This software includes third-party software components.  
+Each component is copyrighted by its respective authors and  
+licensed under the terms stated below.
+
+------------------------------------------------------------
+FFmpeg
+------------------------------------------------------------
+This distribution bundles a binary build of FFmpeg.
+
+FFmpeg is licensed under the GNU General Public License v3 (GPLv3).
+Because FFmpeg is GPLv3, this application is also distributed under GPLv3.
+
+Copyright © the FFmpeg developers.
+Source code: https://ffmpeg.org/
+
+The FFmpeg license file is included in:
+  ./ffmpeg/LICENSE
+
+------------------------------------------------------------
+Python libraries (PyPI dependencies)
+------------------------------------------------------------
+obs-websocket-py — MIT License  
+websocket-client — Apache License 2.0  
+Pillow — HPND License  
+pywin32 / pywin32-ctypes — PSF License  
+packaging — Apache License 2.0  
+altgraph — MIT License  
+pefile — MIT License  
+setuptools — MIT License  
+pyinstaller — GPLv3 with the PyInstaller Exception  
+pyinstaller-hooks-contrib — multiple licenses (MIT/Apache/etc.)
+
+These libraries are used unmodified.  
+Each library’s license text is available from the corresponding PyPI distribution page.

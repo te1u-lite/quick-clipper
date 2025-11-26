@@ -122,3 +122,29 @@ QuickClipper の Settings タブで設定を確認してください。
   - アプリに同梱されたバイナリ、またはユーザー設定のパスを使用
 
 ---
+
+## License
+
+This software is licensed under the **GNU General Public License v3 (GPLv3)**.
+See the [LICENSE](./LICENSE) file for details.
+
+### FFmpeg License Notice
+
+This application **bundles a binary build of FFmpeg**, which is licensed under the **GPLv3**.
+Because FFmpeg is licensed under GPLv3, this entire application is also distributed
+under the terms of the GPLv3 license.
+
+The FFmpeg project is copyright © the FFmpeg developers.
+Source code is available at: https://ffmpeg.org/
+
+This distribution includes the following FFmpeg license files:
+- `ffmpeg/LICENSE` (GPLv3)
+- Any additional license or README files included in the original FFmpeg build
+
+### Third-party libraries
+
+This software uses additional third-party Python libraries (obs-websocket-py, Pillow, pywin32, etc.),
+which are each included under their respective licenses (MIT, Apache, PSF, etc.).  
+These are all compatible with GPLv3 when distributed alongside this software.
+
+A full list is available in `THIRD_PARTY_NOTICES.txt`.
