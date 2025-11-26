@@ -1,11 +1,12 @@
 import threading
 import queue
+import time
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import filedialog
 
-from obs_client import OBSClient
+from obs_client import OBSClient, requests
 from clip_service import ClipService
 from overlay import show_overlay_in_tk
 from global_hotkeys import GlobalHotkeyListener
@@ -323,6 +324,24 @@ class QuickClipperApp:
 
         self.obs_client = None
 
+    def cleanup_after_failed_start(self):
+        # OBS 切断
+        if self.obs_client:
+            try:
+                self.obs_client.disconnect()
+            except Exception:
+                pass
+            self.obs_client = None
+            self.clip_service = None
+
+        # UI 復帰
+        self.obs_status_var.set("OBS: 未接続")
+        self.hotkey_status_var.set("ホットキー: 停止中")
+        self.start_button.config(state="normal")
+        self.stop_button.config(state="disabled")
+
+        self.running = False
+
     # ---------- ログ出力 ----------
 
     def log(self, message: str):
@@ -354,7 +373,43 @@ class QuickClipperApp:
                 # Tk操作はメインスレッド経由で
                 self.root.after(0, lambda: self.log(f"[GUI] クリップ保存処理でエラー: {e}"))
 
+    def _obs_watchdog_loop(self):
+        """
+        OBS の接続状態と ReplayBuffer 状態を監視するループ。
+        OBS が落ちたら自動停止。
+        OBS が起動しても ReplayBuffer が未開始なら自動再試行。
+        """
+        while self.running:
+            try:
+                # OBS に ping を送る（obs-websocket 標準）
+                self.obs_client.ws.call(requests.GetVersion())
+
+            except Exception:
+                # ← OBS が閉じた、または接続が途切れた
+                self.root.after(0, self._handle_obs_disconnected)
+                return
+
+            # ReplayBuffer が止まっていたら自動再起動（任意）
+            try:
+                status = self.obs_client.ws.call(requests.GetReplayBufferStatus())
+                if not status.getOutputActive():
+                    print("[OBS] ReplayBuffer stopped. Restarting...")
+                    try:
+                        self.obs_client.ws.call(requests.StartReplayBuffer())
+                    except:
+                        pass
+            except:
+                pass
+
+            time.sleep(1)  # 1秒監視
+
+    def _handle_obs_disconnected(self):
+        self.log("[GUI] OBS が切断されました。監視を停止します。")
+        messagebox.showwarning("警告", "OBS が閉じられたため QuickClipper を停止しました。")
+        self.on_stop_clicked()  # ← 完全停止
+
     # ---------- GUI用オーバーレイ呼び出し ----------
+
     def _show_overlay_gui(
         self,
         message: str,
@@ -392,12 +447,10 @@ class QuickClipperApp:
             return
 
         self.config_mgr = ConfigManager(self.config_mgr.config_path)
-
         self.obs_client = OBSClient()
 
-        # OBS 接続
+        # OBS へ接続
         try:
-            self.obs_client = OBSClient()
             self.obs_client.connect()
         except Exception as e:
             messagebox.showerror("エラー", f"OBSへの接続に失敗しました:\n{e}")
@@ -406,7 +459,26 @@ class QuickClipperApp:
             self.obs_status_var.set("OBS: 接続失敗")
             return
 
-        # ClipService 作成（GUI用オーバーレイ + GUIログを渡す）
+        # --- リプレイバッファ開始（重要） ---
+        try:
+            self.obs_client.ensure_replaybuffer_running()
+        except Exception as e:
+            messagebox.showwarning("警告", f"{e}")
+            # 接続している場合は切断して UI を戻す
+            try:
+                self.obs_client.disconnect()
+            except:
+                pass
+            self.obs_client = None
+            self.clip_service = None
+            self.obs_status_var.set("OBS: 未接続")
+            self.hotkey_status_var.set("ホットキー: 停止中")
+            self.running = False
+            self.start_button.config(state="normal")
+            self.stop_button.config(state="disabled")
+            return  # ← 絶対にここで終了
+
+        # ClipService 作成
         self.clip_service = ClipService(
             self.obs_client,
             overlay_fn=self._show_overlay_gui,
@@ -415,7 +487,7 @@ class QuickClipperApp:
 
         self.obs_status_var.set("OBS: 接続中")
 
-        # ワーカースレッド起動（未起動 or 止まっている場合のみ）
+        # ワーカースレッド起動
         if not self.worker_thread or not self.worker_thread.is_alive():
             self.worker_thread = threading.Thread(
                 target=self._worker_loop,
@@ -431,11 +503,25 @@ class QuickClipperApp:
         self.start_button.config(state="disabled")
         self.stop_button.config(state="normal")
 
+        # 監視スレッド起動
+        self.watchdog_thread = threading.Thread(
+            target=self._obs_watchdog_loop, daemon=True
+        )
+        self.watchdog_thread.start()
+
         self.log("[GUI] 監視を開始しました。")
 
     def on_stop_clicked(self):
         if not self.running:
             return
+
+        # リプレイバッファ停止
+        if self.obs_client:
+            try:
+                self.obs_client.ws.call(requests.StopReplayBuffer())
+                self.log("[GUI] リプレイバッファを停止しました。")
+            except Exception:
+                pass
 
         self.unregister_hotkeys()
         self.running = False

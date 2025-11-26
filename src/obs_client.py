@@ -55,8 +55,11 @@ class OBSClient:
             self.ws.connect()
             print("[OBS] Connected successfully.")
         except Exception as e:
-            print("[OBS] Connection failed:", e)
-            raise
+            raise RuntimeError(
+                "OBS へ接続できませんでした。\n"
+                "OBS が起動していない、または WebSocket サーバーが無効です。\n"
+                f"詳細: {e}"
+            )
 
     def disconnect(self):
         if self.ws:
@@ -64,9 +67,44 @@ class OBSClient:
             print("[OBS] Disconnected.")
             self.ws = None
 
+    def ensure_replaybuffer_running(self, retries=10, delay=0.5):
+        """
+        リプレイバッファが起動するまで StartReplayBuffer をリトライする。
+        StartReplayBuffer が成功した時点で ReplayBuffer は確実に起動している。
+        """
+        if not self.ws:
+            raise RuntimeError("OBS is not connected.")
+
+        # 録画中なら開始不可
+        if self.is_recording():
+            raise RuntimeError("OBS は現在録画中のため、リプレイバッファを開始できません。")
+
+        # まず最初の1回
+        try:
+            self.ws.call(requests.StartReplayBuffer())
+            print("[OBS] ReplayBuffer started.")
+            return
+        except Exception as e:
+            print("[OBS] StartReplayBuffer failed:", e)
+
+        # ---- リトライ ----
+        for i in range(retries):
+            time.sleep(delay)
+            try:
+                print(f"[OBS] Retrying ReplayBuffer start... {i+1}/{retries}")
+                self.ws.call(requests.StartReplayBuffer())
+                print("[OBS] ReplayBuffer started.")
+                return
+            except Exception as e:
+                print("[OBS] Retry failed:", e)
+
+        # 全部ダメなら失敗
+        raise RuntimeError("リプレイバッファを開始できませんでした。OBS の起動直後は少し待つ必要があります。")
+
     # -------------------------------
     # リプレイ保存
     # -------------------------------
+
     def save_replay(self):
         if not self.ws:
             raise RuntimeError("OBS is not connected.")
@@ -190,3 +228,22 @@ class OBSClient:
                     return latest
 
         raise RuntimeError("OBS の Replay Buffer ファイルが見つかりませんでした。")
+
+    def is_recording(self):
+        if not self.ws:
+            return False
+        try:
+            status = self.ws.call(requests.GetRecordingStatus())
+            return status.getRecording()
+        except Exception:
+            return False
+
+    def is_replaybuffer_active(self):
+        if not self.ws:
+            return False
+        try:
+            status = self.ws.call(requests.GetReplayBufferStatus())
+            # OBS WS v5: "isReplayBufferActive"
+            return status.getReplayBufferActive()
+        except Exception:
+            return False
